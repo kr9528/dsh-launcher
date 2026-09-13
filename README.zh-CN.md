@@ -1,5 +1,7 @@
 # DSH 启动器
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 **DeepSeek Harness (DSH)** 的一键静默启动器，适用于 Windows。
 
 双击桌面快捷方式 → DSH Web 服务器自动启动（如未运行）→ DeepSeek Harness 应用打开。无终端窗口，无命令行，开箱即用。

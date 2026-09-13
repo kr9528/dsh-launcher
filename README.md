@@ -1,5 +1,7 @@
 # DSH Launcher
 
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 One-click silent launcher for **DeepSeek Harness (DSH)** on Windows.
 
 Double-click a desktop shortcut → DSH web server starts (if needed) → DeepSeek Harness app opens — no terminal, no window, no fuss.
