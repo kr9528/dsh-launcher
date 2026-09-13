@@ -1,6 +1,6 @@
 # DSH 启动器
 
-[English](README.md) | [简体中文](README.zh-CN.md)
+[English](README.md) | [简体中文](README.zh.md)
 
 **DeepSeek Harness (DSH)** 的一键静默启动器，适用于 Windows。
 
