@@ -28,14 +28,14 @@ That's it. A "DeepSeek Harness" shortcut appears on your desktop.
 | File | Purpose |
 |------|---------|
 | `dsh-launcher.ps1` | Main script — checks port, starts DSH, opens PWA |
-| `dsh-launcher.vbs` | Silent wrapper — runs the .ps1 with no window |
+| `launcher.bat` | Silent launcher — runs the .ps1 with no visible window |
 | `install.ps1` | Creates the desktop shortcut with the PWA icon |
 
 ## How It Works
 
 ```
-Desktop Shortcut
-    → wscript.exe dsh-launcher.vbs
+Desktop Shortcut / .bat
+    → launcher.bat
         → powershell -WindowStyle Hidden dsh-launcher.ps1
             → Check port 3080
                 ├─ Running? → Skip

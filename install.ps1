@@ -1,5 +1,5 @@
 # install.ps1
-# Installs the DeepSeek Harness launcher shortcut to your desktop
+# Installs the DeepSeek Harness launcher to your desktop
 # Run with: powershell -ExecutionPolicy Bypass -File .\install.ps1
 
 param(
@@ -10,38 +10,47 @@ param(
 $ErrorActionPreference = "Stop"
 
 # Resolve paths
-$scriptDir   = Split-Path -Parent $MyInvocation.MyCommand.Path
-$vbsPath     = Join-Path $scriptDir "dsh-launcher.vbs"
+$scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ps1Path   = Join-Path $scriptDir "dsh-launcher.ps1"
 
-if (-not (Test-Path $vbsPath)) {
-    Write-Host "[ERROR] dsh-launcher.vbs not found at: $vbsPath" -ForegroundColor Red
+if (-not (Test-Path $ps1Path)) {
+    Write-Host "[ERROR] dsh-launcher.ps1 not found at: $ps1Path" -ForegroundColor Red
     exit 1
 }
 
-# Find the DeepSeek Harness PWA icon
+# Create launcher .bat on desktop (no .lnk association issues)
+$desktopPath  = [Environment]::GetFolderPath("Desktop")
+$batPath      = Join-Path $desktopPath "$ShortcutName.bat"
+
+$batContent = @"
+@echo off
+cd /d "$scriptDir"
+start /min powershell -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "$ps1Path"
+exit
+"@
+
+[System.IO.File]::WriteAllText($batPath, $batContent, [System.Text.Encoding]::ASCII)
+
+# Also create a .lnk shortcut if possible (for icon customization)
 $chromeAppData = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Web Applications"
 $iconPath      = Get-ChildItem -Path $chromeAppData -Filter $IconSource -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
 
-if ($iconPath) {
-    $iconFull = $iconPath.FullName
-} else {
-    Write-Host "[WARN] PWA icon not found, using default icon" -ForegroundColor Yellow
-    $iconFull = "C:\Windows\System32\shell32.dll,0"
+$shortcutPath = Join-Path $desktopPath "$ShortcutName.lnk"
+try {
+    $sh  = New-Object -ComObject WScript.Shell
+    $lnk = $sh.CreateShortcut($shortcutPath)
+    $lnk.TargetPath       = $batPath
+    $lnk.WorkingDirectory = $scriptDir
+    if ($iconPath) {
+        $lnk.IconLocation = "$($iconPath.FullName),0"
+    }
+    $lnk.Description      = "One-click DeepSeek Harness Launcher"
+    $lnk.Save()
+    Write-Host "[OK] Shortcut created: $shortcutPath" -ForegroundColor Green
+} catch {
+    Write-Host "[WARN] Could not create .lnk shortcut, using .bat file directly" -ForegroundColor Yellow
 }
 
-# Create desktop shortcut
-$desktopPath = [Environment]::GetFolderPath("Desktop")
-$shortcutPath = Join-Path $desktopPath "$ShortcutName.lnk"
-
-$sh  = New-Object -ComObject WScript.Shell
-$lnk = $sh.CreateShortcut($shortcutPath)
-$lnk.TargetPath       = "C:\Windows\System32\wscript.exe"
-$lnk.Arguments        = """$vbsPath"""
-$lnk.WorkingDirectory = $scriptDir
-$lnk.IconLocation     = "$iconFull,0"
-$lnk.Description      = "One-click DeepSeek Harness Launcher"
-$lnk.Save()
-
-Write-Host "[OK] Shortcut created: $shortcutPath" -ForegroundColor Green
+Write-Host "[OK] Launcher created: $batPath" -ForegroundColor Green
 Write-Host ""
 Write-Host "Double-click '$ShortcutName' on your desktop to launch!" -ForegroundColor Cyan

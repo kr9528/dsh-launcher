@@ -28,14 +28,14 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1
 | 文件 | 用途 |
 |------|------|
 | `dsh-launcher.ps1` | 主脚本 — 检测端口、启动 DSH、打开 PWA |
-| `dsh-launcher.vbs` | 静默包装器 — 无窗口运行 .ps1 |
+| `launcher.bat` | 静默启动器 — 无窗口运行 .ps1 |
 | `install.ps1` | 安装脚本 — 在桌面创建快捷方式 |
 
 ## 工作原理
 
 ```
-桌面快捷方式
-    → wscript.exe dsh-launcher.vbs
+桌面快捷方式 / .bat
+    → launcher.bat
         → powershell -WindowStyle Hidden dsh-launcher.ps1
             → 检测端口 3080
                 ├─ 已运行？→ 跳过
