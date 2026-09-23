@@ -80,10 +80,19 @@ if ($portCheck) {
     }
 }
 
-# 2. Open the web app in browser (handles authentication properly)
-# PWA shortcut is skipped because it shows "authentication required"
-# The browser URL handles the auth flow automatically
+# 2. Open browser first for authentication, then open PWA
+# Browser handles the auth flow, PWA needs auth to be complete first
+Write-Log "Opening browser for authentication..."
 Start-Process "explorer.exe" -ArgumentList $DSH_URL
-Write-Log "Opened browser: $DSH_URL"
+
+# Wait for auth to complete, then open PWA
+Start-Sleep -Seconds 3
+Write-Log "Opening DeepSeek Harness PWA..."
+if ($pwaShortcut) {
+    Start-Process -FilePath $pwaShortcut.FullName
+    Write-Log "Launched PWA: $($pwaShortcut.FullName)"
+} else {
+    Write-Log "PWA shortcut not found, browser already open"
+}
 
 Write-Log "=== Launcher finished ==="
