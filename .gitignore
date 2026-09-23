@@ -11,3 +11,6 @@ Desktop.ini
 
 # PowerShell history
 *.ps1_history
+
+# Launcher runtime log
+launcher.log
