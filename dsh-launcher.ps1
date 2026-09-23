@@ -12,12 +12,21 @@ $DSH_WORKSPACE  = "D:\mi\Desktop\test\deepseek harness"
 # Log file for debugging
 $LOG_FILE       = Join-Path $PSScriptRoot "launcher.log"
 
-# Find Chrome executable
+# Find Chrome executable (for fallback)
 $chromePath = @(
     "$env:ProgramFiles\Google\Chrome\Application\chrome.exe"
     "$env:ProgramFiles(x86)\Google\Chrome\Application\chrome.exe"
     "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
 ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+
+# Find DeepSeek Harness PWA shortcut
+$chromeAppData = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Web Applications"
+$pwaShortcut   = Get-ChildItem -Path $chromeAppData -Filter "DeepSeek Harness.lnk" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+
+if (-not $pwaShortcut) {
+    # Fallback: search desktop shortcuts
+    $pwaShortcut = Get-ChildItem -Path "$env:USERPROFILE\Desktop","$env:PUBDESKTOP" -Filter "DeepSeek Harness.lnk" -ErrorAction SilentlyContinue | Select-Object -First 1
+}
 
 function Write-Log {
     param([string]$Msg)
@@ -27,6 +36,7 @@ function Write-Log {
 
 Write-Log "=== Launcher started ==="
 Write-Log "Workspace: $DSH_WORKSPACE"
+Write-Log "PWA: $(if ($pwaShortcut) { $pwaShortcut.FullName } else { 'NOT FOUND' })"
 Write-Log "Chrome: $(if ($chromePath) { $chromePath } else { 'NOT FOUND' })"
 
 # Make sure workspace exists
@@ -78,16 +88,18 @@ if ($portCheck) {
     }
 }
 
-# 2. Open DeepSeek Harness in Chrome app mode (minimized)
-# --app= looks like an app but is a real browser (handles auth properly)
-# --start-minimized opens it minimized in the taskbar
-if ($chromePath) {
-    Write-Log "Opening DeepSeek Harness in Chrome app mode (minimized)..."
+# 2. Open DeepSeek Harness app
+# Prefer PWA shortcut, fallback to Chrome --app= mode
+if ($pwaShortcut) {
+    Write-Log "Opening DeepSeek Harness PWA..."
+    Start-Process -FilePath $pwaShortcut.FullName
+} elseif ($chromePath) {
+    Write-Log "PWA not found, using Chrome --app= mode..."
     Start-Process -FilePath $chromePath `
-        -ArgumentList "--app=$DSH_URL", "--start-minimized" `
+        -ArgumentList "--app=$DSH_URL" `
         -WindowStyle Minimized
 } else {
-    Write-Log "Chrome not found, opening browser fallback..."
+    Write-Log "No PWA or Chrome found, opening browser fallback..."
     Start-Process "explorer.exe" -ArgumentList $DSH_URL
 }
 
