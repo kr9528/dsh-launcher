@@ -45,33 +45,29 @@ if (-not (Test-Path $DSH_WORKSPACE)) {
     $DSH_WORKSPACE = $PSScriptRoot
 }
 
-# 1. Check if DSH is already running
-# Wait for HTTP server to be ready, not just port listening
-$serverReady = $false
-$maxWait = 30
-$waited = 0
+# 1. Quick port check first
+$portCheck = netstat -ano | Select-String ":$PORT\s+.*LISTENING"
 
-while ($waited -lt $maxWait) {
-    # Check if we can get an HTTP response (server is truly ready)
-    try {
-        $response = Invoke-WebRequest -Uri $DSH_URL -TimeoutSec 2 -ErrorAction Stop
-        $serverReady = $true
-        break
-    } catch {
-        # Server not ready yet, keep waiting
+if ($portCheck) {
+    # Port is listening, verify HTTP is ready
+    Write-Host "[OK] DSH is running on port $PORT"
+    Write-Log "DSH already running on port $PORT"
+    
+    # Wait for HTTP to be ready (server might still be initializing)
+    for ($i = 0; $i -lt 10; $i++) {
+        try {
+            Invoke-WebRequest -Uri $DSH_URL -TimeoutSec 2 -ErrorAction Stop
+            Write-Log "DSH HTTP ready"
+            break
+        } catch {
+            Start-Sleep -Seconds 1
+        }
     }
     
-    Start-Sleep -Seconds 1
-    $waited++
-}
-
-if ($serverReady) {
-    Write-Host "[OK] DSH is running on port $PORT"
-    Write-Log "DSH ready (HTTP response OK)"
-    
-    # Extra delay to ensure server is fully initialized
+    # Extra delay to ensure fully initialized
     Start-Sleep -Seconds 2
 } else {
+    # DSH not running, start it
     Write-Host "[WAIT] Starting DSH web..."
     Write-Log "Starting DSH web via cmd /c in workspace..."
 
@@ -84,17 +80,17 @@ if ($serverReady) {
         -WorkingDirectory $DSH_WORKSPACE `
         -WindowStyle Minimized
 
-    # Wait for server to become ready
-    $waited2 = 0
+    # Wait for HTTP server to be ready
+    $maxWait = 30
+    $waited = 0
     $started = $false
 
-    while ($waited2 -lt $maxWait) {
+    while ($waited -lt $maxWait) {
         Start-Sleep -Seconds 1
-        $waited2++
+        $waited++
         
-        # Check HTTP response
         try {
-            $response = Invoke-WebRequest -Uri $DSH_URL -TimeoutSec 2 -ErrorAction Stop
+            Invoke-WebRequest -Uri $DSH_URL -TimeoutSec 2 -ErrorAction Stop
             $started = $true
             break
         } catch {
@@ -104,9 +100,9 @@ if ($serverReady) {
 
     if ($started) {
         Write-Host "[OK] DSH started successfully!"
-        Write-Log "DSH started after ${waited2}s"
+        Write-Log "DSH started after ${waited}s"
         
-        # Extra delay to ensure server is fully initialized
+        # Extra delay to ensure fully initialized
         Start-Sleep -Seconds 2
     } else {
         Write-Host "[WARN] DSH did not start within $maxWait seconds"
