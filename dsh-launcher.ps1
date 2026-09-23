@@ -9,8 +9,15 @@ $DSH_URL        = "http://127.0.0.1:3080"
 $PORT           = 3080
 # DSH workspace: dsh web uses the current directory as workspace (skills/settings live here)
 $DSH_WORKSPACE  = "D:\mi\Desktop\test\deepseek harness"
-# Log file for debugging (everything runs hidden, so log what we do)
+# Log file for debugging
 $LOG_FILE       = Join-Path $PSScriptRoot "launcher.log"
+
+# Find Chrome executable
+$chromePath = @(
+    "$env:ProgramFiles\Google\Chrome\Application\chrome.exe"
+    "$env:ProgramFiles(x86)\Google\Chrome\Application\chrome.exe"
+    "$env:LOCALAPPDATA\Google\Chrome\Application\chrome.exe"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
 function Write-Log {
     param([string]$Msg)
@@ -20,22 +27,13 @@ function Write-Log {
 
 Write-Log "=== Launcher started ==="
 Write-Log "Workspace: $DSH_WORKSPACE"
+Write-Log "Chrome: $(if ($chromePath) { $chromePath } else { 'NOT FOUND' })"
 
 # Make sure workspace exists
 if (-not (Test-Path $DSH_WORKSPACE)) {
     Write-Log "WARN: Workspace not found, falling back to script dir"
     $DSH_WORKSPACE = $PSScriptRoot
 }
-
-# Try to find dsh web app shortcut (PWA)
-$chromeAppData = "$env:LOCALAPPDATA\Google\Chrome\User Data\Default\Web Applications"
-$pwaShortcut   = Get-ChildItem -Path $chromeAppData -Filter "DeepSeek Harness.lnk" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
-
-if (-not $pwaShortcut) {
-    # Fallback: search desktop shortcuts
-    $pwaShortcut = Get-ChildItem -Path "$env:USERPROFILE\Desktop","$env:PUBDESKTOP" -Filter "DeepSeek Harness.lnk" -ErrorAction SilentlyContinue | Select-Object -First 1
-}
-Write-Log "PWA shortcut: $(if ($pwaShortcut) { $pwaShortcut.FullName } else { 'NOT FOUND' })"
 
 # 1. Check if DSH is already running
 $portCheck = netstat -ano | Select-String ":$PORT\s+.*LISTENING"
@@ -80,19 +78,17 @@ if ($portCheck) {
     }
 }
 
-# 2. Open browser first for authentication, then open PWA
-# Browser handles the auth flow, PWA needs auth to be complete first
-Write-Log "Opening browser for authentication..."
-Start-Process "explorer.exe" -ArgumentList $DSH_URL
-
-# Wait for auth to complete, then open PWA
-Start-Sleep -Seconds 3
-Write-Log "Opening DeepSeek Harness PWA..."
-if ($pwaShortcut) {
-    Start-Process -FilePath $pwaShortcut.FullName
-    Write-Log "Launched PWA: $($pwaShortcut.FullName)"
+# 2. Open DeepSeek Harness in Chrome app mode (minimized)
+# --app= looks like an app but is a real browser (handles auth properly)
+# --start-minimized opens it minimized in the taskbar
+if ($chromePath) {
+    Write-Log "Opening DeepSeek Harness in Chrome app mode (minimized)..."
+    Start-Process -FilePath $chromePath `
+        -ArgumentList "--app=$DSH_URL", "--start-minimized" `
+        -WindowStyle Minimized
 } else {
-    Write-Log "PWA shortcut not found, browser already open"
+    Write-Log "Chrome not found, opening browser fallback..."
+    Start-Process "explorer.exe" -ArgumentList $DSH_URL
 }
 
 Write-Log "=== Launcher finished ==="
