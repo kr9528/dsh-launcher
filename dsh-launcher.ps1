@@ -46,11 +46,31 @@ if (-not (Test-Path $DSH_WORKSPACE)) {
 }
 
 # 1. Check if DSH is already running
-$portCheck = netstat -ano | Select-String ":$PORT\s+.*LISTENING"
+# Wait for HTTP server to be ready, not just port listening
+$serverReady = $false
+$maxWait = 30
+$waited = 0
 
-if ($portCheck) {
+while ($waited -lt $maxWait) {
+    # Check if we can get an HTTP response (server is truly ready)
+    try {
+        $response = Invoke-WebRequest -Uri $DSH_URL -TimeoutSec 2 -ErrorAction Stop
+        $serverReady = $true
+        break
+    } catch {
+        # Server not ready yet, keep waiting
+    }
+    
+    Start-Sleep -Seconds 1
+    $waited++
+}
+
+if ($serverReady) {
     Write-Host "[OK] DSH is running on port $PORT"
-    Write-Log "DSH already running on port $PORT"
+    Write-Log "DSH ready (HTTP response OK)"
+    
+    # Extra delay to ensure server is fully initialized
+    Start-Sleep -Seconds 2
 } else {
     Write-Host "[WAIT] Starting DSH web..."
     Write-Log "Starting DSH web via cmd /c in workspace..."
@@ -65,42 +85,42 @@ if ($portCheck) {
         -WindowStyle Minimized
 
     # Wait for server to become ready
-    $maxWait = 20
-    $waited  = 0
+    $waited2 = 0
     $started = $false
 
-    while ($waited -lt $maxWait) {
+    while ($waited2 -lt $maxWait) {
         Start-Sleep -Seconds 1
-        $waited++
-        $check = netstat -ano | Select-String ":$PORT\s+.*LISTENING"
-        if ($check) {
+        $waited2++
+        
+        # Check HTTP response
+        try {
+            $response = Invoke-WebRequest -Uri $DSH_URL -TimeoutSec 2 -ErrorAction Stop
             $started = $true
             break
+        } catch {
+            # Not ready yet
         }
     }
 
     if ($started) {
         Write-Host "[OK] DSH started successfully!"
-        Write-Log "DSH started after ${waited}s"
+        Write-Log "DSH started after ${waited2}s"
+        
+        # Extra delay to ensure server is fully initialized
+        Start-Sleep -Seconds 2
     } else {
         Write-Host "[WARN] DSH did not start within $maxWait seconds"
         Write-Log "WARN: DSH did not start within $maxWait seconds"
     }
 }
 
-# 2. Open DeepSeek Harness app
-# Prefer PWA shortcut, fallback to Chrome --app= mode
+# 2. Open DeepSeek Harness PWA (only one window)
 if ($pwaShortcut) {
     Write-Log "Opening DeepSeek Harness PWA..."
     Start-Process -FilePath $pwaShortcut.FullName
-} elseif ($chromePath) {
-    Write-Log "PWA not found, using Chrome --app= mode..."
-    Start-Process -FilePath $chromePath `
-        -ArgumentList "--app=$DSH_URL" `
-        -WindowStyle Minimized
 } else {
-    Write-Log "No PWA or Chrome found, opening browser fallback..."
-    Start-Process "explorer.exe" -ArgumentList $DSH_URL
+    Write-Log "WARN: PWA shortcut not found!"
+    Write-Log "Please create a PWA shortcut for DeepSeek Harness"
 }
 
 Write-Log "=== Launcher finished ==="
