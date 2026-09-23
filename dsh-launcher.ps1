@@ -47,12 +47,14 @@ if ($portCheck) {
     Write-Host "[WAIT] Starting DSH web..."
     Write-Log "Starting DSH web via cmd /c in workspace..."
 
-    # Start DSH web server hidden, in the correct workspace directory.
+    # Start DSH web server, in the correct workspace directory.
     # dsh is an npm .cmd shim, so run it through cmd.exe.
+    # Window starts minimized but visible in taskbar
+    Write-Log "Starting DSH web (minimized, in taskbar)..."
     Start-Process -FilePath "cmd.exe" `
         -ArgumentList "/c", "dsh web" `
         -WorkingDirectory $DSH_WORKSPACE `
-        -WindowStyle Hidden
+        -WindowStyle Minimized
 
     # Wait for server to become ready
     $maxWait = 20
@@ -78,13 +80,10 @@ if ($portCheck) {
     }
 }
 
-# 2. Launch the PWA app (or fall back to browser)
-if ($pwaShortcut) {
-    Start-Process -FilePath $pwaShortcut.FullName
-    Write-Log "Launched PWA: $($pwaShortcut.FullName)"
-} else {
-    Start-Process "explorer.exe" -ArgumentList $DSH_URL
-    Write-Log "Opened browser fallback: $DSH_URL"
-}
+# 2. Open the web app in browser (handles authentication properly)
+# PWA shortcut is skipped because it shows "authentication required"
+# The browser URL handles the auth flow automatically
+Start-Process "explorer.exe" -ArgumentList $DSH_URL
+Write-Log "Opened browser: $DSH_URL"
 
 Write-Log "=== Launcher finished ==="
